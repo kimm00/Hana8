@@ -1,19 +1,19 @@
 package com.hana8.hello.oop;
 
-public class FreeAccount extends Account implements Withdrawable, Transferable {
+public class MonthlyAcount extends Account implements Transferable {
 
-	public FreeAccount() {
-		super("자유입출금");
+	public MonthlyAcount() {
+		super("정기적금");
 	}
 
 	@Override
-	public void withdraw(double amount) {
+	public void transfer(Account toAccount, double amount) {
+		toAccount.deposit(amount);
 		this.amount -= amount;
 	}
 
-	@Override
-	public void transfer(Account toAccount, double amount){
-		toAccount.deposit(amount);
-		this.withdraw(amount);
+	public void mature(FreeAccount freeAccount) {
+		this.transfer(freeAccount, this.amount);
+		this.close();
 	}
 }
