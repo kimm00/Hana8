@@ -1,6 +1,5 @@
 package com.hana8.demo.service;
 
-import com.hana8.demo.repository.MemberRepository;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
@@ -13,12 +12,16 @@ import org.springframework.util.StringUtils;
 import com.hana8.demo.dto.PostDTO;
 import com.hana8.demo.dto.PostListDTO;
 import com.hana8.demo.dto.ReplyDTO;
+import com.hana8.demo.entity.Hashtag;
 import com.hana8.demo.entity.Post;
 import com.hana8.demo.entity.PostBody;
 import com.hana8.demo.entity.QPost;
 import com.hana8.demo.entity.Reply;
+import com.hana8.demo.mapper.HashtagMapper;
 import com.hana8.demo.mapper.PostMapper;
 import com.hana8.demo.mapper.ReplyMapper;
+import com.hana8.demo.repository.HashtagRepository;
+import com.hana8.demo.repository.MemberRepository;
 import com.hana8.demo.repository.PostRepository;
 import com.hana8.demo.repository.ReplyRepository;
 import com.querydsl.core.BooleanBuilder;
@@ -31,9 +34,11 @@ public class PostService {
 	private final PostRepository repository;
 	private final ReplyRepository replyRepository;
 	private final MemberRepository memberRepository;
+	private final HashtagRepository hashtagRepository;
 
 	private final PostMapper mapper;
 	private final ReplyMapper replyMapper;
+	private final HashtagMapper hashtagMapper;
 
 	public List<PostDTO> getPosts(PostListDTO dto) {
 		System.out.println("dto = " + dto);
@@ -45,10 +50,10 @@ public class PostService {
 			bb.and(post.title.contains(dto.getTitle()));
 
 		if (StringUtils.hasText(dto.getBody()))
-			bb.and(post.body.contains(dto.getBody()));
+			bb.and(post.body.body.contains(dto.getBody()));
 
 		if (StringUtils.hasText(dto.getWriter()))
-			bb.and(post.writer.eq(dto.getWriter()));
+			bb.and(post.writer.nickname.eq(dto.getWriter()));
 
 		if (StringUtils.hasText(dto.getWritedate())) {
 			ZoneId zone = ZoneId.of("Asia/Seoul");
@@ -71,15 +76,29 @@ public class PostService {
 		Post post = repository.findById(id)
 				.orElseThrow(() -> new IllegalArgumentException("Post #%d is not found!".formatted(id)));
 
-		return mapper.toDTO(post);
+		PostDTO dto = mapper.toDTO(post);
+		dto.setReplies(replyMapper.toDTOList(replyRepository.findAllByPostId(id)));
+		return dto;
 	}
 
 	public PostDTO registPost(PostDTO dto) {
 		Post savedPost = repository.save(mapper.toEntity(dto));
+
+		List<Hashtag> hashtags = dto.getHashtags().stream().map(h -> {
+			Hashtag hashtag = hashtagRepository.findByTag(h.getTag()).orElseGet(() ->
+					hashtagRepository.save(new Hashtag(h.getTag())));
+			hashtag.addPosts(savedPost);
+			return hashtag;
+		}).toList();
+
+		// Todo loginedMemberId
 		savedPost.setWriter(memberRepository.findById(dto.getWriter().getId()).orElseThrow());
 		PostBody body = mapper.toEntity(dto.getBody());
 		savedPost.setBody(body);
-		return mapper.toDTO(repository.save(savedPost));
+
+		PostDTO postDTO = mapper.toDTO(repository.save(savedPost));
+		postDTO.setHashtags(hashtags.stream().map(hashtagMapper::toDTO).toList());
+		return postDTO;
 	}
 
 	public PostDTO editPost(PostDTO post) {
@@ -88,7 +107,7 @@ public class PostService {
 
 		oldPost.setTitle(post.getTitle());
 		oldPost.setBody(mapper.toEntity(post.getBody()));
-		oldPost.setWriter(post.getWriter());
+		// oldPost.setWriter(post.getWriter());
 
 		return mapper.toDTO(repository.save(oldPost));
 	}

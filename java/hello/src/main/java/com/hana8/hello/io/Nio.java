@@ -15,7 +15,16 @@ public class Nio {
 	public static void main(String[] args) throws IOException {
 		// smallFile();
 		// bigFileWrite();
-		bigFileRead();
+		// bigFileRead();
+
+		readAndWrite();
+	}
+
+	private static void readAndWrite() {
+//		Path srcPath = Path.of("./").resolve();
+
+		Path srcPath = Path.of("src");
+		System.out.println("srcPath.toAbsolutePath() = " + srcPath.toAbsolutePath());
 	}
 
 	private static void bigFileWrite() {
