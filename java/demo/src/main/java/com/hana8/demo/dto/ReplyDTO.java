@@ -13,7 +13,7 @@ public class ReplyDTO {
 	private Long id;
 
 	private String reply;
-	private MemberDTO replier;
+	private DeptDTO replier;
 
 	private Long postId;
 

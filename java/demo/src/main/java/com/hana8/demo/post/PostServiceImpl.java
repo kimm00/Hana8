@@ -4,6 +4,7 @@ import java.util.List;
 
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
+import org.springframework.stereotype.Service;
 
 // @Service
 @RequiredArgsConstructor

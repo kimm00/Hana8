@@ -20,14 +20,14 @@ import lombok.ToString;
 @Builder
 @ToString(callSuper = true)
 public class PostDTO {
-	@NotNull(groups = MemberDTO.OnUpdate.class, message = "수정할 멤버의 id를 입력하세요!")
+	@NotNull(groups = DeptDTO.OnUpdate.class, message = "수정할 멤버의 id를 입력하세요!")
 	private Long id;
 
 	@NotBlank
 	private String title;
 
 	@NotBlank
-	private MemberDTO writer;
+	private DeptDTO writer;
 
 	private LocalDateTime createdAt;
 	private LocalDateTime updatedAt;
