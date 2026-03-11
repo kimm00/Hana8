@@ -1,13 +1,11 @@
 package com.hana8.demo.dto;
 
+import com.fasterxml.jackson.annotation.JsonManagedReference;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-
-import com.fasterxml.jackson.annotation.JsonManagedReference;
-
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -20,14 +18,15 @@ import lombok.ToString;
 @Builder
 @ToString(callSuper = true)
 public class PostDTO {
-	@NotNull(groups = DeptDTO.OnUpdate.class, message = "수정할 멤버의 id를 입력하세요!")
+
+	@NotNull(groups = MemberDTO.OnUpdate.class, message = "수정할 멤버의 id를 입력하세요!")
 	private Long id;
 
 	@NotBlank
 	private String title;
 
 	@NotBlank
-	private DeptDTO writer;
+	private MemberDTO writer;
 
 	private LocalDateTime createdAt;
 	private LocalDateTime updatedAt;
@@ -39,13 +38,11 @@ public class PostDTO {
 	@Builder.Default
 	private List<ReplyDTO> replies = new ArrayList<>();
 
-	@JsonManagedReference
-	@Builder.Default
-	private List<HashtagDTO> hashtags = new ArrayList<>();
-
 	public interface OnCreate {
+
 	}
 
 	public interface OnUpdate {
+
 	}
 }

@@ -1,59 +1,55 @@
 package com.hana8.demo.service;
 
+import com.hana8.demo.dto.PostDTO;
+import com.hana8.demo.dto.PostListDTO;
+import com.hana8.demo.dto.ReplyDTO;
+import com.hana8.demo.entity.Post;
+import com.hana8.demo.entity.QPost;
+import com.hana8.demo.entity.Reply;
+import com.hana8.demo.mapper.PostMapper;
+import com.hana8.demo.mapper.ReplyMapper;
+import com.hana8.demo.repository.MemberRepository;
+import com.hana8.demo.repository.PostRepository;
+import com.hana8.demo.repository.ReplyRepository;
+import com.querydsl.core.BooleanBuilder;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
-
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
-import com.hana8.demo.dto.PostDTO;
-import com.hana8.demo.dto.PostListDTO;
-import com.hana8.demo.dto.ReplyDTO;
-import com.hana8.demo.entity.Hashtag;
-import com.hana8.demo.entity.Post;
-import com.hana8.demo.entity.PostBody;
-import com.hana8.demo.entity.QPost;
-import com.hana8.demo.entity.Reply;
-import com.hana8.demo.mapper.HashtagMapper;
-import com.hana8.demo.mapper.PostMapper;
-import com.hana8.demo.mapper.ReplyMapper;
-import com.hana8.demo.repository.HashtagRepository;
-import com.hana8.demo.repository.MemberRepository;
-import com.hana8.demo.repository.PostRepository;
-import com.hana8.demo.repository.ReplyRepository;
-import com.querydsl.core.BooleanBuilder;
-
-import lombok.RequiredArgsConstructor;
-
 @Service
 @RequiredArgsConstructor
 public class PostService {
+
 	private final PostRepository repository;
 	private final ReplyRepository replyRepository;
 	private final MemberRepository memberRepository;
-	private final HashtagRepository hashtagRepository;
 
-	private final PostMapper mapper;
+	private final PostMapper postMapper;
 	private final ReplyMapper replyMapper;
-	private final HashtagMapper hashtagMapper;
 
 	public List<PostDTO> getPosts(PostListDTO dto) {
 		System.out.println("dto = " + dto);
-		PageRequest pager = PageRequest.of(dto.getPage() - 1, dto.getPageSize(), Sort.by("id").descending());
+		PageRequest pager = PageRequest.of(dto.getPage() - 1, dto.getPageSize(),
+				Sort.by("id").descending());
 
 		QPost post = QPost.post;
 		BooleanBuilder bb = new BooleanBuilder();
-		if (StringUtils.hasText(dto.getTitle()))
+		if (StringUtils.hasText(dto.getTitle())) {
 			bb.and(post.title.contains(dto.getTitle()));
+		}
 
-		if (StringUtils.hasText(dto.getBody()))
+		if (StringUtils.hasText(dto.getBody())) {
 			bb.and(post.body.body.contains(dto.getBody()));
+		}
 
-		if (StringUtils.hasText(dto.getWriter()))
-			bb.and(post.writer.nickname.eq(dto.getWriter()));
+		if (StringUtils.hasText(dto.getWriter())) {
+			bb.and(post.writer.nickname.contains(dto.getWriter()));
+		}
 
 		if (StringUtils.hasText(dto.getWritedate())) {
 			ZoneId zone = ZoneId.of("Asia/Seoul");
@@ -64,52 +60,59 @@ public class PostService {
 			ZonedDateTime end = dto.parseWritedate().plusDays(1).atStartOfDay(zone);
 			System.out.println("start, end = " + start + ',' + end);
 			// bb.and(post.createdAt.between(start, end));
-			bb.and(post.createdAt.goe(start.toLocalDateTime()).and(post.createdAt.lt(end.toLocalDateTime())));
+			bb.and(post.createdAt.goe(start.toLocalDateTime())
+					.and(post.createdAt.lt(end.toLocalDateTime())));
 		}
 
 		List<Post> posts = repository.findAll(bb, pager).getContent();
 
-		return posts.stream().map(mapper::toDTO).toList();
+		return posts.stream().map(postMapper::toDTO).toList();
 	}
 
 	public PostDTO getPost(Long id) {
 		Post post = repository.findById(id)
 				.orElseThrow(() -> new IllegalArgumentException("Post #%d is not found!".formatted(id)));
-
-		PostDTO dto = mapper.toDTO(post);
+		PostDTO dto = postMapper.toDTO(post);
 		dto.setReplies(replyMapper.toDTOList(replyRepository.findAllByPostId(id)));
+
 		return dto;
 	}
 
 	public PostDTO registPost(PostDTO dto) {
-		Post savedPost = repository.save(mapper.toEntity(dto));
+		// 1. 매퍼를 통해 엔티티 기본 변환
+		Post post = postMapper.toEntity(dto);
 
-		List<Hashtag> hashtags = dto.getHashtags().stream().map(h -> {
-			Hashtag hashtag = hashtagRepository.findByTag(h.getTag()).orElseGet(() ->
-					hashtagRepository.save(new Hashtag(h.getTag())));
-			hashtag.addPosts(savedPost);
-			return hashtag;
-		}).toList();
+		// 2. 작성자(Member) 연관관계 설정
+		if (dto.getWriter() != null && dto.getWriter().getId() != null) {
+			post.setWriter(memberRepository.getReferenceById(dto.getWriter().getId()));
+		}
 
-		// Todo loginedMemberId
-		savedPost.setWriter(memberRepository.findById(dto.getWriter().getId()).orElseThrow());
-		PostBody body = mapper.toEntity(dto.getBody());
-		savedPost.setBody(body);
+		// 3. PostBody 설정 (기존 로직 유지)
+		if (dto.getBody() != null) {
+			post.setBody(postMapper.toEntity(dto.getBody()));
+		}
 
-		PostDTO postDTO = mapper.toDTO(repository.save(savedPost));
-		postDTO.setHashtags(hashtags.stream().map(hashtagMapper::toDTO).toList());
-		return postDTO;
+		return postMapper.toDTO(repository.save(post));
 	}
 
-	public PostDTO editPost(PostDTO post) {
-		Post oldPost = repository.findById(post.getId())
-				.orElseThrow(() -> new IllegalArgumentException("Post #%d is not found!".formatted(post.getId())));
+	public PostDTO editPost(PostDTO dto) {
+		Post oldPost = repository.findById(dto.getId())
+				.orElseThrow(
+						() -> new IllegalArgumentException("Post #%d is not found!".formatted(dto.getId())));
 
-		oldPost.setTitle(post.getTitle());
-		oldPost.setBody(mapper.toEntity(post.getBody()));
-		// oldPost.setWriter(post.getWriter());
+		// 필드 업데이트
+		oldPost.setTitle(dto.getTitle());
 
-		return mapper.toDTO(repository.save(oldPost));
+		if (dto.getBody() != null) {
+			oldPost.setBody(postMapper.toEntity(dto.getBody()));
+		}
+
+		// 작성자 변경 (MemberDTO -> Member)
+		if (dto.getWriter() != null && dto.getWriter().getId() != null) {
+			oldPost.setWriter(memberRepository.getReferenceById(dto.getWriter().getId()));
+		}
+
+		return postMapper.toDTO(repository.save(oldPost));
 	}
 
 	public int removePost(Long id) {
@@ -127,14 +130,14 @@ public class PostService {
 
 	public ReplyDTO getReply(Long id) {
 		return replyMapper.toDTO(
-				replyRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("Reply not Found!")));
+				replyRepository.findById(id)
+						.orElseThrow(() -> new IllegalArgumentException("Reply not Found!")));
 	}
 
 	public ReplyDTO addReply(ReplyDTO dto) {
 		Post post = repository.findById(dto.getPostId()).orElseThrow();
 		Reply reply = replyMapper.toEntity(dto);
 		reply.setPost(post);
-		reply.setReplier(memberRepository.findById(dto.getReplier().getId()).orElseThrow());
 		return replyMapper.toDTO(replyRepository.save(reply));
 	}
 
