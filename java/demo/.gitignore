@@ -17,6 +17,8 @@ build/
 
 logs/
 tmp/
+upload/
+secure/
 
 db.properties
 *security.properties
