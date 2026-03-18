@@ -5,6 +5,7 @@ import java.util.List;
 import org.springframework.core.io.Resource;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -36,6 +37,7 @@ public class MemberController {
 	private final FileService fileService;
 
 	@GetMapping("")
+	@PreAuthorize("hasAnyRole('ROLE_USER', 'ROLE_ADMIN')")
 	List<MemberDTO> getMembers() {
 		return service.getMemers();
 	}
@@ -46,6 +48,7 @@ public class MemberController {
 	}
 
 	@GetMapping("/{id}")
+	@PreAuthorize("hasAnyRole('ROLE_MANAGER', 'ROLE_ADMIN')")
 	MemberDTO getMember(@PathVariable Long id) {
 		return service.getMember(id);
 	}
@@ -84,7 +87,7 @@ public class MemberController {
 
 	@GetMapping("/files/download/{filename}")
 	ResponseEntity<Resource> download(@PathVariable String filename,
-			@RequestParam(defaultValue = "false") boolean inline, boolean isSecure) {
+		@RequestParam(defaultValue = "false") boolean inline, boolean isSecure) {
 		if (isSecure) {
 			// Todo check the file owner or administrator
 			System.out.println("isSecure = " + filename + "?isSecure=true");
@@ -102,7 +105,7 @@ public class MemberController {
 
 	@PostMapping(path = "/{memberId}/images", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
 	ResponseEntity<?> registImages(@PathVariable Long memberId,
-			@Valid() @ModelAttribute MemberImageRequestDTO requestDTO) {
+		@Valid() @ModelAttribute MemberImageRequestDTO requestDTO) {
 		requestDTO.setMemberId(memberId);
 		try {
 			return ResponseEntity.ok(service.registImages(requestDTO));
